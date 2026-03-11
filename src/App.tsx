@@ -21,6 +21,7 @@ import Slide13 from './slides/Slide13';
 import Slide14 from './slides/Slide14';
 import Slide15 from './slides/Slide15';
 import Slide16 from './slides/Slide16';
+import Slide18 from './slides/Slide18';
 
 const Slide17 = React.lazy(() => import('./slides/Slide17'));
 
@@ -44,7 +45,8 @@ export default function App() {
     <Slide16 key="slide16" />,
     <Suspense key="slide17" fallback={<div className="flex items-center justify-center h-full text-gray-500">Loading Vistral Examples...</div>}>
       <Slide17 />
-    </Suspense>
+    </Suspense>,
+    <Slide18 key="slide18" />
   ];
 
   return <SlideDeck slides={slides} />;

@@ -3,92 +3,103 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Code2, LineChart, AreaChart, PieChart, Grid3X3, BarChart3, BarChart } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { BasicLineChart, MultiSeriesAreaChart, FrameBoundBarChart, GrammarBarChart, GrammarDonutChart, GrammarHeatmap } from './VistralCharts';
+import { BasicLineChart, MultiSeriesAreaChart, GrammarFrameBoundBarChart, GrammarKeyBoundBarChart, GrammarDonutChart, GrammarHeatmap } from './VistralCharts';
 
 const examples = [
   {
     id: 'line',
     title: 'Line Chart',
     icon: LineChart,
-    file: 'basic-examples.tsx',
+    file: 'chart.tsx',
     component: BasicLineChart,
-    code: `const config: TimeSeriesConfig = {
-  chartType: 'line',
-  xAxis: 'time',
-  yAxis: 'value',
-  lineStyle: 'curve',
-  gridlines: true,
-  yTitle: 'CPU Usage (%)',
-  yRange: { min: 0, max: 100 },
-  unit: { position: 'right', value: '%' },
-  fractionDigits: 1,
+    code: `const spec: VistralSpec = {
+  marks: [
+    {
+      type: 'line',
+      encode: { x: 'time', y: 'value' },
+      style: { shape: 'smooth' },
+    },
+  ],
+  scales: {
+    y: { type: 'linear', domain: [0, 100] },
+  },
+  temporal: { mode: 'axis', field: 'time', range: 5 },
+  axes: {
+    y: { title: 'CPU Usage (%)' },
+  },
+  theme: 'light',
+  animate: false,
 };`
   },
   {
     id: 'area',
     title: 'Area Chart',
     icon: AreaChart,
-    file: 'basic-examples.tsx',
+    file: 'chart.tsx',
     component: MultiSeriesAreaChart,
-    code: `const config: TimeSeriesConfig = {
-  chartType: 'area',
-  xAxis: 'timestamp',
-  yAxis: 'temperature',
-  color: 'location',
-  legend: true,
-  gridlines: true,
-  xTitle: 'Time',
-  yTitle: 'Temperature (°C)',
-  colors: findPaletteByLabel('Morning')?.values,
+    code: `const spec: VistralSpec = {
+  marks: [
+    {
+      type: 'area',
+      encode: { x: 'timestamp', y: 'temperature', color: 'location' },
+      transforms: [{ type: 'stackY' }],
+    },
+  ],
+  temporal: { mode: 'axis', field: 'timestamp', range: 5 },
+  axes: {
+    x: { title: 'Time' },
+    y: { title: 'Temperature (°C)' },
+  },
+  legend: { position: 'top' },
+  theme: 'light',
+  animate: false,
 };`
   },
   {
-    id: 'bar',
-    title: 'Bar Chart (Frame-Bound)',
+    id: 'bar-frame',
+    title: 'Column Chart',
     icon: BarChart3,
-    file: 'basic-examples.tsx',
-    component: FrameBoundBarChart,
-    code: `const config: BarColumnConfig = {
-  chartType: 'column',
-  xAxis: 'product',
-  yAxis: 'sales',
-  temporal: { mode: 'frame', field: 'timestamp' },
-  dataLabel: true,
-  gridlines: true,
-  yTitle: 'Sales',
-  fractionDigits: 0,
-  colors: findPaletteByLabel('Ocean')?.values,
-};`
-  },
-  {
-    id: 'grammar-bar',
-    title: 'Grammar: Bar Chart',
-    icon: BarChart,
-    file: 'grammar-examples.tsx',
-    component: GrammarBarChart,
+    file: 'chart.tsx',
+    component: GrammarFrameBoundBarChart,
     code: `const spec: VistralSpec = {
   marks: [
     {
       type: 'interval',
-      encode: {
-        x: 'product',
-        y: 'sales',
-        color: 'product',
-      },
+      encode: { x: 'server', y: 'cpu', color: 'server' },
     },
   ],
-  scales: {
-    x: { padding: 0.5 },
-    y: { type: 'linear', nice: true },
-  },
-  coordinate: {
-    transforms: [{ type: 'transpose' }],
-  },
   temporal: { mode: 'frame', field: 'timestamp' },
-  streaming: { maxItems: 500 },
   axes: {
-    x: { title: false, grid: false },
-    y: { title: 'Value', grid: true },
+    y: { title: 'CPU Usage (%)' },
+  },
+  scales: {
+    y: { type: 'linear', domain: [0, 100] },
+  },
+  legend: false,
+  theme: 'light',
+  animate: false,
+};`
+  },
+  {
+    id: 'bar-key',
+    title: 'Bar Chart',
+    icon: BarChart,
+    file: 'chart.tsx',
+    component: GrammarKeyBoundBarChart,
+    code: `const spec: VistralSpec = {
+  marks: [
+    {
+      type: 'interval',
+      encode: { x: 'price', y: 'symbol', color: 'symbol' },
+    },
+  ],
+  temporal: { mode: 'key', field: 'symbol' },
+  scales: {
+    x: { type: 'linear' },
+    y: { type: 'band', nice: true },
+  },
+  axes: {
+    x: { title: 'Stock Price ($)' },
   },
   legend: false,
   theme: 'light',
@@ -97,9 +108,9 @@ const examples = [
   },
   {
     id: 'donut',
-    title: 'Grammar: Donut Chart',
+    title: 'Donut Chart',
     icon: PieChart,
-    file: 'grammar-examples.tsx',
+    file: 'chart.tsx',
     component: GrammarDonutChart,
     code: `const spec: VistralSpec = {
   marks: [
@@ -133,7 +144,7 @@ const examples = [
   },
   {
     id: 'heatmap',
-    title: 'Grammar: Heatmap',
+    title: 'Heatmap',
     icon: Grid3X3,
     file: 'grammar-examples.tsx',
     component: GrammarHeatmap,
@@ -187,7 +198,7 @@ export default function Slide17() {
             <Code2 className="w-5 h-5 text-[#EC4899]" />
           </div>
           <h1 className="text-[24px] font-semibold text-[#231F2B]">
-            Vistral Code Examples
+            Vistral Live Code Examples
           </h1>
         </div>
       </motion.div>

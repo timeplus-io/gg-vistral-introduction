@@ -1,13 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  StreamChart,
   VistralChart,
-  useStreamingData,
-  findPaletteByLabel,
 } from '@timeplus/vistral';
 import type {
-  StreamDataSource,
-  TimeSeriesConfig,
   VistralSpec,
   ChartHandle,
 } from '@timeplus/vistral';
@@ -17,41 +12,50 @@ import { dataGenerators } from '../data-utils';
 // Example 1: Streaming Line Chart
 // =============================================================================
 export function BasicLineChart() {
-  const { data, append } = useStreamingData<Record<string, unknown>[]>([], 300);
-  const loadedRef = useRef(false);
+  const handleRef = useRef<ChartHandle | null>(null);
+  const loadedRef = useRef(false);           // Guard against Strict Mode double-run
+
+  const spec: VistralSpec = {
+    marks: [
+      {
+        type: 'line',
+        encode: { x: 'time', y: 'value' },
+        style: { shape: 'smooth' },
+      },
+    ],
+    scales: {
+      y: { type: 'linear', domain: [0, 100] },
+    },
+    temporal: { mode: 'axis', field: 'time', range: 5 },
+    axes: {
+      y: { title: 'CPU Usage (%)' },
+    },
+    theme: 'light',
+    animate: false,
+  };
 
   useEffect(() => {
-    if (!loadedRef.current) {
+    // Guard against React 18 Strict Mode double-run
+    if (!loadedRef.current && handleRef.current) {
       loadedRef.current = true;
-      append(dataGenerators.cpuLoad.generate(30));
+      handleRef.current.append(dataGenerators.cpuLoad.generate(30));
+    } else if (!loadedRef.current) {
+      loadedRef.current = true;
+      setTimeout(() => handleRef.current?.append(dataGenerators.cpuLoad.generate(30)), 50);
     }
-    const id = setInterval(() => {
-      append(dataGenerators.cpuLoad.generate());
+    const interval = setInterval(() => {
+      handleRef.current?.append(dataGenerators.cpuLoad.generate());
     }, dataGenerators.cpuLoad.interval);
-    return () => clearInterval(id);
+    return () => clearInterval(interval);
   }, []);
-
-  const source: StreamDataSource = {
-    columns: dataGenerators.cpuLoad.columns,
-    data,
-    isStreaming: true,
-  };
-
-  const config: TimeSeriesConfig = {
-    chartType: 'line',
-    xAxis: 'time',
-    yAxis: 'value',
-    lineStyle: 'curve',
-    gridlines: true,
-    yTitle: 'CPU Usage (%)',
-    yRange: { min: 0, max: 100 },
-    unit: { position: 'right', value: '%' },
-    fractionDigits: 1,
-  };
 
   return (
     <div className="w-full h-full">
-      <StreamChart config={config} data={source} theme="light" />
+      <VistralChart
+        spec={spec}
+        height={300}
+        onReady={(handle) => { handleRef.current = handle; }}
+      />
     </div>
   );
 }
@@ -60,116 +64,73 @@ export function BasicLineChart() {
 // Example 2: Multi-Series Streaming Area Chart
 // =============================================================================
 export function MultiSeriesAreaChart() {
-  const { data, append } = useStreamingData<Record<string, unknown>[]>(
-    [],
-    240
-  );
-  const loadedRef = useRef(false);
-
-  useEffect(() => {
-    if (!loadedRef.current) {
-      loadedRef.current = true;
-      append(dataGenerators.sensors.generate(30));
-    }
-    const id = setInterval(() => {
-      append(dataGenerators.sensors.generate());
-    }, dataGenerators.sensors.interval);
-    return () => clearInterval(id);
-  }, []);
-
-  const source: StreamDataSource = {
-    columns: dataGenerators.sensors.columns,
-    data: data,
-    isStreaming: true,
-  };
-
-  const config: TimeSeriesConfig = {
-    chartType: 'area',
-    xAxis: 'timestamp',
-    yAxis: 'temperature',
-    color: 'location',
-    legend: true,
-    gridlines: true,
-    xTitle: 'Time',
-    yTitle: 'Temperature (°C)',
-    colors: findPaletteByLabel('Morning')?.values,
-  };
-
-  return (
-    <div className="w-full h-full">
-      <StreamChart config={config} data={source} theme="light" />
-    </div>
-  );
-}
-
-// =============================================================================
-// Example 3: Frame-Bound Bar Chart
-// =============================================================================
-export function FrameBoundBarChart() {
-  const [data, setData] = React.useState<Record<string, unknown>[]>([]);
-
-  useEffect(() => {
-    setData(dataGenerators.productInventory.generate());
-    const id = setInterval(() => {
-      setData(dataGenerators.productInventory.generate());
-    }, dataGenerators.productInventory.interval);
-    return () => clearInterval(id);
-  }, []);
-
-  const source: StreamDataSource = {
-    columns: dataGenerators.productInventory.columns,
-    data,
-    isStreaming: true,
-  };
-
-  const config: TimeSeriesConfig = {
-    chartType: 'column',
-    xAxis: 'product',
-    yAxis: 'sales',
-    temporal: { mode: 'frame', field: 'timestamp' },
-    dataLabel: true,
-    gridlines: true,
-    yTitle: 'Sales',
-    fractionDigits: 0,
-    colors: findPaletteByLabel('Ocean')?.values,
-  };
-
-  return (
-    <div className="w-full h-full">
-      <StreamChart config={config} data={source} theme="light" />
-    </div>
-  );
-}
-
-// =============================================================================
-// Example 4: Grammar Bar Chart
-// =============================================================================
-export function GrammarBarChart() {
   const handleRef = useRef<ChartHandle | null>(null);
+  const loadedRef = useRef(false);           // Guard against Strict Mode double-run
+
+  const spec: VistralSpec = {
+    marks: [
+      {
+        type: 'area',
+        encode: { x: 'timestamp', y: 'temperature', color: 'location' },
+        transforms: [{ type: 'stackY' }],
+      },
+    ],
+    temporal: { mode: 'axis', field: 'timestamp', range: 5 },
+    axes: {
+      x: { title: 'Time' },
+      y: { title: 'Temperature (°C)' },
+    },
+    legend: { position: 'top' },
+    theme: 'light',
+    animate: false,
+  };
+
+  useEffect(() => {
+    // Guard against React 18 Strict Mode double-run
+    if (!loadedRef.current && handleRef.current) {
+      loadedRef.current = true;
+      handleRef.current.append(dataGenerators.sensors.generate(30));
+    } else if (!loadedRef.current) {
+      loadedRef.current = true;
+      setTimeout(() => handleRef.current?.append(dataGenerators.sensors.generate(30)), 50);
+    }
+    const interval = setInterval(() => {
+      handleRef.current?.append(dataGenerators.sensors.generate());
+    }, dataGenerators.sensors.interval);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="w-full h-full">
+      <VistralChart
+        spec={spec}
+        height={300}
+        onReady={(handle) => { handleRef.current = handle; }}
+      />
+    </div>
+  );
+}
+
+// =============================================================================
+// Example 3: Grammar Frame-Bound Bar Chart
+// =============================================================================
+export function GrammarFrameBoundBarChart() {
+  const handleRef = useRef<ChartHandle | null>(null);
+  const loadedRef = useRef(false);           // Guard against Strict Mode double-run
 
   const spec: VistralSpec = {
     marks: [
       {
         type: 'interval',
-        encode: {
-          x: 'product',
-          y: 'sales',
-          color: 'product',
-        },
+        encode: { x: 'server', y: 'cpu', color: 'server' },
       },
     ],
-    scales: {
-      x: { padding: 0.5 },
-      y: { type: 'linear', nice: true },
-    },
-    coordinate: {
-      transforms: [{ type: 'transpose' }],
-    },
     temporal: { mode: 'frame', field: 'timestamp' },
-    streaming: { maxItems: 500 },
     axes: {
-      x: { title: false, grid: false },
-      y: { title: 'Value', grid: true },
+      y: { title: 'CPU Usage (%)' },
+    },
+    scales: {
+      y: { type: 'linear', domain: [0, 100] },
     },
     legend: false,
     theme: 'light',
@@ -177,10 +138,70 @@ export function GrammarBarChart() {
   };
 
   useEffect(() => {
-    handleRef.current?.replace(dataGenerators.productInventory.generate());
+    // Guard against React 18 Strict Mode double-run
+    if (!loadedRef.current && handleRef.current) {
+      loadedRef.current = true;
+      handleRef.current.append(dataGenerators.metrics.generate());
+    } else if (!loadedRef.current) {
+      loadedRef.current = true;
+      setTimeout(() => handleRef.current?.append(dataGenerators.metrics.generate()), 50);
+    }
     const interval = setInterval(() => {
-      handleRef.current?.replace(dataGenerators.productInventory.generate());
-    }, dataGenerators.productInventory.interval);
+      handleRef.current?.append(dataGenerators.metrics.generate());
+    }, dataGenerators.metrics.interval);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="w-full h-full">
+      <VistralChart
+        spec={spec}
+        height={300}
+        onReady={(handle) => { handleRef.current = handle; }}
+      />
+    </div>
+  );
+}
+
+// =============================================================================
+// Example 4: Grammar Key-Bound Bar Chart
+// =============================================================================
+export function GrammarKeyBoundBarChart() {
+  const handleRef = useRef<ChartHandle | null>(null);
+  const loadedRef = useRef(false);           // Guard against Strict Mode double-run
+
+  const spec: VistralSpec = {
+    marks: [
+      {
+        type: 'interval',
+        encode: { x: 'price', y: 'symbol', color: 'symbol' },
+      },
+    ],
+    temporal: { mode: 'key', field: 'symbol' },
+    scales: {
+      x: { type: 'linear' },
+      y: { type: 'band', nice: true },
+    },
+    axes: {
+      x: { title: 'Stock Price ($)' },
+    },
+    legend: false,
+    theme: 'light',
+    animate: false,
+  };
+
+  useEffect(() => {
+    // Guard against React 18 Strict Mode double-run
+    if (!loadedRef.current && handleRef.current) {
+      loadedRef.current = true;
+      handleRef.current.append(dataGenerators.stocks.generate());
+    } else if (!loadedRef.current) {
+      loadedRef.current = true;
+      setTimeout(() => handleRef.current?.append(dataGenerators.stocks.generate()), 50);
+    }
+    const interval = setInterval(() => {
+      handleRef.current?.append(dataGenerators.stocks.generate());
+    }, dataGenerators.stocks.interval);
     return () => clearInterval(interval);
   }, []);
 
@@ -200,6 +221,7 @@ export function GrammarBarChart() {
 // =============================================================================
 export function GrammarDonutChart() {
   const handleRef = useRef<ChartHandle | null>(null);
+  const loadedRef = useRef(false);           // Guard against Strict Mode double-run
 
   const spec: VistralSpec = {
     marks: [
@@ -232,7 +254,14 @@ export function GrammarDonutChart() {
   };
 
   useEffect(() => {
-    handleRef.current?.replace(dataGenerators.httpResponses.generate());
+    // Guard against React 18 Strict Mode double-run
+    if (!loadedRef.current && handleRef.current) {
+      loadedRef.current = true;
+      handleRef.current.replace(dataGenerators.httpResponses.generate());
+    } else if (!loadedRef.current) {
+      loadedRef.current = true;
+      setTimeout(() => handleRef.current?.replace(dataGenerators.httpResponses.generate()), 50);
+    }
     const interval = setInterval(() => {
       handleRef.current?.replace(dataGenerators.httpResponses.generate());
     }, dataGenerators.httpResponses.interval);
@@ -255,6 +284,7 @@ export function GrammarDonutChart() {
 // =============================================================================
 export function GrammarHeatmap() {
   const handleRef = useRef<ChartHandle | null>(null);
+  const loadedRef = useRef(false);           // Guard against Strict Mode double-run
 
   const spec: VistralSpec = {
     marks: [
@@ -284,7 +314,14 @@ export function GrammarHeatmap() {
   };
 
   useEffect(() => {
-    handleRef.current?.replace(dataGenerators.datacenterLoad.generate());
+    // Guard against React 18 Strict Mode double-run
+    if (!loadedRef.current && handleRef.current) {
+      loadedRef.current = true;
+      handleRef.current.replace(dataGenerators.datacenterLoad.generate());
+    } else if (!loadedRef.current) {
+      loadedRef.current = true;
+      setTimeout(() => handleRef.current?.replace(dataGenerators.datacenterLoad.generate()), 50);
+    }
     const interval = setInterval(() => {
       handleRef.current?.replace(dataGenerators.datacenterLoad.generate());
     }, dataGenerators.datacenterLoad.interval);
