@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -9,6 +9,35 @@ interface SlideDeckProps {
 export default function SlideDeck({ slides }: SlideDeckProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [direction, setDirection] = useState(0);
+  const [scale, setScale] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Fixed presentation dimensions
+  const SLIDE_WIDTH = 1024;
+  const SLIDE_HEIGHT = 576;
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (containerRef.current) {
+        // Use getBoundingClientRect for sub-pixel accuracy
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        
+        // Calculate available space
+        const availableWidth = width - 32; // 16px padding on each side
+        const availableHeight = height - 80; // 40px padding on top/bottom to ensure controls are visible
+        
+        const scaleX = availableWidth / SLIDE_WIDTH;
+        const scaleY = availableHeight / SLIDE_HEIGHT;
+        
+        // Use the smaller scale to ensure it fits both dimensions
+        setScale(Math.min(scaleX, scaleY, 1));
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -59,31 +88,49 @@ export default function SlideDeck({ slides }: SlideDeckProps) {
   };
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-gray-900 flex flex-col">
-      <div className="flex-1 relative">
-        <AnimatePresence initial={false} custom={direction}>
-          <motion.div
-            key={currentSlide}
-            custom={direction}
-            variants={variants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{
-              x: { type: "spring", stiffness: 300, damping: 30 },
-              opacity: { duration: 0.2 }
+    <div className="relative w-full h-[100dvh] overflow-hidden bg-gray-900 flex flex-col">
+      <div className="flex-1 relative flex items-start sm:items-center justify-center pt-4 sm:pt-0" ref={containerRef}>
+        <div 
+          style={{ 
+            width: SLIDE_WIDTH * scale, 
+            height: SLIDE_HEIGHT * scale 
+          }}
+          className="relative shrink-0"
+        >
+          <div
+            style={{
+              width: SLIDE_WIDTH,
+              height: SLIDE_HEIGHT,
+              transform: `scale(${scale})`,
+              transformOrigin: 'top left'
             }}
-            className="absolute inset-0 flex items-center justify-center p-6"
+            className="absolute top-0 left-0"
           >
-            <div className="w-full max-w-5xl aspect-video bg-white border border-gray-700 rounded p-6 shadow-sm flex flex-col relative">
-              {slides[currentSlide]}
-            </div>
-          </motion.div>
-        </AnimatePresence>
+            <AnimatePresence initial={false} custom={direction}>
+              <motion.div
+                key={currentSlide}
+                custom={direction}
+                variants={variants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{
+                  x: { type: "spring", stiffness: 300, damping: 30 },
+                  opacity: { duration: 0.2 }
+                }}
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <div className="w-full h-full bg-white border border-gray-700 rounded p-6 shadow-sm flex flex-col relative overflow-hidden">
+                  {slides[currentSlide]}
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
       </div>
 
       {/* Controls */}
-      <div className="h-16 border-t border-gray-700 bg-white flex items-center justify-between px-6 z-10">
+      <div className="h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] border-t border-gray-700 bg-white flex items-center justify-between px-6 z-10 shrink-0">
         <div className="text-sm text-gray-400">
           Slide {currentSlide + 1} of {slides.length}
         </div>
